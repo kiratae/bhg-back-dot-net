@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using CrypticWizard.RandomWordGenerator;
 using static CrypticWizard.RandomWordGenerator.WordGenerator;
 using Microsoft.AspNetCore.SignalR;
+using System.Net.Mime;
 
 namespace BHG.WebService
 {
@@ -11,46 +12,32 @@ namespace BHG.WebService
     public class RoomController : BaseController
     {
         private readonly ILogger<RoomController> _logger;
-        private readonly IHubContext<GameHub> _gameHubContext;
         private static readonly WordGenerator _wordGenerator = new();
         private static readonly List<PartOfSpeech> _wordPattern = [PartOfSpeech.adj, PartOfSpeech.noun, PartOfSpeech.verb];
 
-        public RoomController(ILogger<RoomController> logger, IHubContext<GameHub> gameHubContext)
+        public RoomController(ILogger<RoomController> logger)
         {
             _logger = logger;
-            _gameHubContext = gameHubContext;
-        }
-
-        [HttpGet("{roomCode}")]
-        public ActionResult<string> Get(string roomCode)
-        {
-            const string func = "Get";
-            try
-            {
-                // TODO: Get room data and users, then return it.
-
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"{func}: Exception caugth.");
-                return Error();
-            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<string>> Post(string userName, CancellationToken cancellationToken)
+        [Consumes(MediaTypeNames.Application.Json)]
+        [Produces(MediaTypeNames.Application.Json)]
+        [ProducesResponseType<RoomRequest.Response>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public ActionResult<RoomRequest.Response> Post([FromBody] RoomRequest model, CancellationToken cancellationToken)
         {
             const string func = "Post";
             try
             {
+                if (!ModelState.IsValid) return BadRequest();
+
                 string roomCode = _wordGenerator.GetPattern(_wordPattern, '-');
 
-                // TODO: Create room and make this user is host of the room.
+                var res = new RoomRequest.Response() { RoomCode = roomCode, HostUserName = model.UserName };
 
-                await Task.Delay(1, cancellationToken);
-
-                return Ok(roomCode);
+                return Ok(res);
             }
             catch (Exception ex)
             {

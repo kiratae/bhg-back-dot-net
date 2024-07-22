@@ -7,7 +7,7 @@ namespace BHG.WebService
     {
         protected ActionResult Error()
         {
-            return StatusCode((int)HttpStatusCode.InternalServerError);
+            return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
 }
