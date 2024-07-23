@@ -1,48 +1,52 @@
-name: Build and deploy .NET Core application to Web App bear-hunt-game-api
+name: Build and deploy .NET application to container app bear-hunt-game-api
 on:
   push:
     branches:
     - master
 env:
-  AZURE_WEBAPP_NAME: bear-hunt-game-api
-  AZURE_WEBAPP_PACKAGE_PATH: WebService/published
-  CONFIGURATION: Release
-  DOTNET_CORE_VERSION: 8.0.x
-  WORKING_DIRECTORY: WebService
+  CONTAINER_APP_CONTAINER_NAME: bear-hunt-game-api
+  CONTAINER_APP_NAME: bear-hunt-game-api
+  CONTAINER_APP_RESOURCE_GROUP_NAME: bear-hunt-game-api_group
+  CONTAINER_REGISTRY_LOGIN_SERVER: bearhuntgameapiregistry.azurecr.io
+  DOCKER_FILE_PATH: WebService/Dockerfile
+  PROJECT_NAME_FOR_DOCKER: bhgwebservice
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup .NET SDK
-      uses: actions/setup-dotnet@v3
+    - name: Checkout to the branch
+      uses: actions/checkout@v4
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Log in to container registry
+      uses: docker/login-action@v3
       with:
-        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
-    - name: Restore
-      run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
-    - name: Build
-      run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
-    - name: Test
-      run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build
-    - name: Publish
-      run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
-    - name: Publish Artifacts
-      uses: actions/upload-artifact@v3
+        registry: ${{ env.CONTAINER_REGISTRY_LOGIN_SERVER }}
+        username: ${{ secrets.BearHuntGameApiRegistry_USERNAME_7E8E }}
+        password: ${{ secrets.BearHuntGameApiRegistry_PASSWORD_7E8E }}
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v5
       with:
-        name: webapp
-        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        push: true
+        tags: ${{ env.CONTAINER_REGISTRY_LOGIN_SERVER }}/${{ env.PROJECT_NAME_FOR_DOCKER }}:${{ github.sha }}
+        file: ${{ env.DOCKER_FILE_PATH }}
   deploy:
     runs-on: ubuntu-latest
     needs: build
     steps:
-    - name: Download artifact from build job
-      uses: actions/download-artifact@v3
+    - name: Azure Login
+      uses: azure/login@v1
       with:
-        name: webapp
-        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-    - name: Deploy to Azure WebApp
-      uses: azure/webapps-deploy@v2
+        creds: ${{ secrets.bear_hunt_game_api_SPN }}
+    - name: Deploy to containerapp
+      uses: azure/CLI@v1
       with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.bear_hunt_game_api_5A81 }}
-        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        inlineScript: >
+          az config set extension.use_dynamic_install=yes_without_prompt
+
+          az containerapp registry set --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.CONTAINER_APP_RESOURCE_GROUP_NAME }} --server ${{ env.CONTAINER_REGISTRY_LOGIN_SERVER }} --username ${{ secrets.BearHuntGameApiRegistry_USERNAME_7E8E }} --password ${{ secrets.BearHuntGameApiRegistry_PASSWORD_7E8E }}
+
+          az containerapp update --name ${{ env.CONTAINER_APP_NAME }} --container-name ${{ env.CONTAINER_APP_CONTAINER_NAME }} --resource-group ${{ env.CONTAINER_APP_RESOURCE_GROUP_NAME }} --image ${{ env.CONTAINER_REGISTRY_LOGIN_SERVER }}/${{ env.PROJECT_NAME_FOR_DOCKER }}:${{ github.sha }}
+    - name: logout
+      run: >
+        az logout
