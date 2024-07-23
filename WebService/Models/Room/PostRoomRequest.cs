@@ -2,7 +2,7 @@
 
 namespace BHG.WebService
 {
-    public class RoomRequest
+    public class PostRoomRequest
     {
         [Required]
         public string UserName { get; set; }
