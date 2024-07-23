@@ -16,6 +16,10 @@ namespace BHG.WebService
 
             builder.Services.AddSignalR();
 
+            string mongoDBConnectionString = builder.Configuration.GetConnectionString("MongoDB");
+            if (!string.IsNullOrEmpty(mongoDBConnectionString))
+                Environment.SetEnvironmentVariable("MongoDB_ConnectionString", mongoDBConnectionString);
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -31,7 +35,7 @@ namespace BHG.WebService
 
             app.MapControllers();
 
-            app.MapHub<RoomHub>("/roomHub");
+            app.MapHub<GameHub>("/game/{roomName}");
 
             app.Run();
         }
