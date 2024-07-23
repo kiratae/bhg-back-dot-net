@@ -2,7 +2,7 @@ name: Build and deploy .NET Core application to Web App bear-hunt-game-api
 on:
   push:
     branches:
-    - master-patch-1
+    - master
 env:
   AZURE_WEBAPP_NAME: bear-hunt-game-api
   AZURE_WEBAPP_PACKAGE_PATH: WebService/published
