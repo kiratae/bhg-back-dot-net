@@ -7,6 +7,7 @@
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <AssemblyName>BHG.WebService</AssemblyName>
     <RootNamespace>BHG.WebService</RootNamespace>
+    <StartupObject>BHG.WebService.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
