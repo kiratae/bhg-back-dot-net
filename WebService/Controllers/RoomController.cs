@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using CrypticWizard.RandomWordGenerator;
 using static CrypticWizard.RandomWordGenerator.WordGenerator;
-using Microsoft.AspNetCore.SignalR;
 using System.Net.Mime;
 
 namespace BHG.WebService
