@@ -1,6 +1,6 @@
 ﻿namespace BHG.WebService
 {
-    public enum RoomCardStatus : byte
+    public enum CardStatus : byte
     {
         Unknown = 0,
         RealEvidence = 1,

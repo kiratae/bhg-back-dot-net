@@ -7,11 +7,9 @@ namespace BHG.WebService
         [Required]
         public string UserName { get; set; }
 
-        public class Response
+        public class Response(Room room)
         {
-            public string RoomCode { get; set; }
-
-            public string HostUserName { get; set; }
+            public Room Data { get; set; } = room;
         }
     }
 }

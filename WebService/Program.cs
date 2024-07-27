@@ -27,13 +27,15 @@ namespace BHG.WebService
 
             }
 
+            app.UseStaticFiles();
+
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
 
             app.MapControllers();
 
-            app.MapHub<GameHub>("/game/{roomName}");
+            app.MapHub<GameHub>("/game/{roomCode}");
 
             app.Run();
         }

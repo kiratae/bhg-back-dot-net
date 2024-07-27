@@ -1,5 +1,4 @@
-﻿using BHG.WebService.Data;
-
+﻿
 namespace BHG.WebService
 {
     public class GameHubResponse
