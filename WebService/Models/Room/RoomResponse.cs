@@ -7,6 +7,6 @@
             Data = room;
         }
 
-        public Room Data { get; set; };
+        public Room Data { get; set; }
     }
 }
