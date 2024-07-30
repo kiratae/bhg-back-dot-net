@@ -11,7 +11,7 @@
 
         public async Task InvokeAsync(HttpContext context)
         {
-            if (context.Request.Path.StartsWithSegments("api") || context.Request.Path.StartsWithSegments("game"))
+            if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/game"))
             {
                 if (!context.Request.Headers.TryGetValue("X-API-Key", out var apiKey))
                 {
