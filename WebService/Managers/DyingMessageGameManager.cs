@@ -103,6 +103,7 @@ namespace BHG.WebService
                                 room.Players[i].RoleId = PlayerRole.DogJarvis;
                             else
                                 room.Players[i].RoleId = PlayerRole.Civilian;
+                            room.Players[i].StatusId = PlayerStatus.Alive;
                         }
                     }
                     room.GameStateId = GameState.Start;
@@ -280,6 +281,7 @@ namespace BHG.WebService
 
             int cardDeckQty = room.CardDecks.Count;
             var cardIndexes = new HashSet<int>();
+            var cardIds = new HashSet<int>();
             for (int i = 0; i < maxPrepareCard; i++)
             {
                 cardIndexes.Add(GetRandomIndex(cardDeckQty, cardIndexes));
@@ -287,17 +289,24 @@ namespace BHG.WebService
 
             lock (room)
             {
-                foreach (var cardIndex in cardIndexes)
+                lock (room.HandCards)
                 {
-                    lock (room.HandCards)
-                    {
-                        room.HandCards.Clear();
-                        room.HandCards.Add(room.CardDecks[cardIndex]);
-                    }
+                    room.HandCards.Clear();
 
-                    lock (room.CardDecks)
+                    foreach (var cardIndex in cardIndexes)
                     {
-                        room.CardDecks.RemoveAt(cardIndex);
+                        var card = room.CardDecks[cardIndex];
+                        room.HandCards.Add(card);
+                        cardIds.Add(card.CardId);
+                    }
+                }
+
+                lock (room.CardDecks)
+                {
+                    foreach (var cardId in cardIds)
+                    {
+                        var index = room.CardDecks.FindIndex(x => x.CardId == cardId);
+                        room.CardDecks.RemoveAt(index);
                     }
                 }
             }

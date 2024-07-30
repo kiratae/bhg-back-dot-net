@@ -58,7 +58,7 @@ namespace BHG.WebService
                     }
                     else if (model.AcionTypeId.Value == DMGameAction.DeadChooseEvidence)
                     {
-                        if (room.IsPlayerInRole(model.UserName, PlayerRole.Killer) && !string.IsNullOrWhiteSpace(model.TargetUserName) && model.TargetCardIds.Count == 1)
+                        if (room.IsPlayerStatus(model.UserName, PlayerStatus.Dying) && model.TargetCardIds.Count == 1)
                         {
                             room = await gameMan.DeadChooseEvidence(roomCode, model.TargetCardIds.First(), _hubContext);
                             return Ok(new RoomResponse(room));
@@ -66,7 +66,7 @@ namespace BHG.WebService
                     }
                     else if (model.AcionTypeId.Value == DMGameAction.KillerChooseEvidences)
                     {
-                        if (room.IsPlayerInRole(model.UserName, PlayerRole.Killer) && !string.IsNullOrWhiteSpace(model.TargetUserName) && model.TargetCardIds.Count == 2)
+                        if (room.IsPlayerInRole(model.UserName, PlayerRole.Killer) && model.TargetCardIds.Count == 2)
                         {
                             room = await gameMan.KillerChooseEvidences(roomCode, model.TargetCardIds, _hubContext);
                             return Ok(new RoomResponse(room));

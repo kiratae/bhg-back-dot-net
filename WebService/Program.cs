@@ -15,9 +15,9 @@ namespace BHG.WebService
 
             builder.Services.AddSignalR();
 
-            string mongoDBConnectionString = builder.Configuration.GetConnectionString("MongoDB");
-            if (!string.IsNullOrEmpty(mongoDBConnectionString))
-                Environment.SetEnvironmentVariable("MongoDB_ConnectionString", mongoDBConnectionString);
+            string apiKey = builder.Configuration.GetValue<string>("ApiKey");
+            if (!string.IsNullOrEmpty(apiKey))
+                Environment.SetEnvironmentVariable("ApiKey", apiKey);
 
             var app = builder.Build();
 
@@ -33,9 +33,7 @@ namespace BHG.WebService
 
             app.UseAuthorization();
 
-#if !DEBUG
             app.UseMiddleware<ApiKeyMiddleware>();
-#endif
 
             app.MapControllers();
 
