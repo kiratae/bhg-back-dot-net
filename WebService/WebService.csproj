@@ -1,19 +1,25 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>33098387-b063-4686-9eb3-74283419b966</UserSecretsId>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <AssemblyName>BHG.WebService</AssemblyName>
-    <RootNamespace>BHG.WebService</RootNamespace>
-    <StartupObject>BHG.WebService.Program</StartupObject>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UserSecretsId>33098387-b063-4686-9eb3-74283419b966</UserSecretsId>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<AssemblyName>BHG.WebService</AssemblyName>
+		<RootNamespace>BHG.WebService</RootNamespace>
+		<StartupObject>BHG.WebService.Program</StartupObject>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="CrypticWizard.RandomWordGenerator" Version="0.9.5" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
-    <PackageReference Include="MongoDB.Driver" Version="2.27.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="CrypticWizard.RandomWordGenerator" Version="0.9.5" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
+		<PackageReference Include="MongoDB.Driver" Version="2.27.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Update="wwwroot\*.*">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
 </Project>

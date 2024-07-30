@@ -27,13 +27,21 @@ namespace BHG.WebService
 
             }
 
+            app.UseStaticFiles();
+
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
 
+#if !DEBUG
+            app.UseMiddleware<ApiKeyMiddleware>();
+#endif
+
             app.MapControllers();
 
-            app.MapHub<GameHub>("/game/{roomName}");
+            app.MapHub<GameHub>("/game/{roomCode}");
+
+            app.MapGet("/health_check", () => "App online");
 
             app.Run();
         }

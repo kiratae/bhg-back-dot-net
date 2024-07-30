@@ -7,7 +7,10 @@ using System.Net.Mime;
 namespace BHG.WebService
 {
     [ApiController]
-    [Route("rooms")]
+    [Route("api/rooms")]
+    [ProducesResponseType<RoomResponse>(StatusCodes.Status200OK)]
+    [Consumes(MediaTypeNames.Application.Json), Produces(MediaTypeNames.Application.Json)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest), ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public class RoomController : BaseController
     {
         private readonly ILogger<RoomController> _logger;
@@ -19,13 +22,27 @@ namespace BHG.WebService
             _logger = logger;
         }
 
+        [HttpGet("{roomCode}")]
+        public ActionResult<RoomResponse> Get([FromRoute] string roomCode)
+        {
+            const string func = "Get";
+            try
+            {
+                if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
+
+                var room = DyingMessageGameManager.GetInstance().GetRoomSession(roomCode);
+
+                return Ok(new RoomResponse(room));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"{func}: Exception caugth.");
+                return Error();
+            }
+        }
+
         [HttpPost]
-        [Consumes(MediaTypeNames.Application.Json)]
-        [Produces(MediaTypeNames.Application.Json)]
-        [ProducesResponseType<RoomRequest.Response>(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<RoomRequest.Response> Post([FromBody] RoomRequest model, CancellationToken cancellationToken)
+        public ActionResult<RoomResponse> Post([FromBody] PostRoomRequest model)
         {
             const string func = "Post";
             try
@@ -34,9 +51,49 @@ namespace BHG.WebService
 
                 string roomCode = _wordGenerator.GetPattern(_wordPattern, '-');
 
-                var res = new RoomRequest.Response() { RoomCode = roomCode, HostUserName = model.UserName };
+                var room = DyingMessageGameManager.GetInstance().CreateSession(roomCode, model.UserName);
 
-                return Ok(res);
+                return Ok(new RoomResponse(room));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"{func}: Exception caugth.");
+                return Error();
+            }
+        }
+
+        [HttpPost("{roomCode}/join")]
+        public ActionResult<RoomResponse> Join([FromRoute] string roomCode, [FromBody] PostRoomRequest model)
+        {
+            const string func = "Join";
+            try
+            {
+                if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
+
+                var room = DyingMessageGameManager.GetInstance().JoinRoomSession(roomCode, model.UserName);
+
+                return Ok(new RoomResponse(room));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"{func}: Exception caugth.");
+                return Error();
+            }
+        }
+
+        [HttpPost("{roomCode}/config")]
+        public ActionResult<RoomResponse> Config([FromRoute] string roomCode, [FromBody] RoomConfigRequest model)
+        {
+            const string func = "Config";
+            try
+            {
+                if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
+
+                var instance = DyingMessageGameManager.GetInstance();
+
+                instance.ConfigGame(roomCode, model.ExtraRoles);
+
+                return Ok(new RoomResponse(instance.GetRoomSession(roomCode)));
             }
             catch (Exception ex)
             {
