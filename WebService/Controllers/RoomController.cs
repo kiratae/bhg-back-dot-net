@@ -3,31 +3,27 @@ using Microsoft.AspNetCore.Mvc;
 using CrypticWizard.RandomWordGenerator;
 using static CrypticWizard.RandomWordGenerator.WordGenerator;
 using System.Net.Mime;
-using Microsoft.AspNetCore.SignalR;
 
 namespace BHG.WebService
 {
     [ApiController]
     [Route("api/rooms")]
+    [ProducesResponseType<RoomResponse>(StatusCodes.Status200OK)]
+    [Consumes(MediaTypeNames.Application.Json), Produces(MediaTypeNames.Application.Json)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest), ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public class RoomController : BaseController
     {
         private readonly ILogger<RoomController> _logger;
         private static readonly WordGenerator _wordGenerator = new();
         private static readonly List<PartOfSpeech> _wordPattern = [PartOfSpeech.adj, PartOfSpeech.noun, PartOfSpeech.verb];
-        private readonly IHubContext<GameHub> _hubContext;
 
-        public RoomController(ILogger<RoomController> logger, IHubContext<GameHub> hubContext)
+        public RoomController(ILogger<RoomController> logger)
         {
             _logger = logger;
-            _hubContext = hubContext;
         }
 
         [HttpGet("{roomCode}")]
-        [Produces(MediaTypeNames.Application.Json)]
-        [ProducesResponseType<PostRoomRequest.Response>(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<GetRoomRequest.Response> Get([FromRoute] string roomCode, CancellationToken cancellationToken)
+        public ActionResult<RoomResponse> Get([FromRoute] string roomCode)
         {
             const string func = "Get";
             try
@@ -36,7 +32,7 @@ namespace BHG.WebService
 
                 var room = DyingMessageGameManager.GetInstance().GetRoomSession(roomCode);
 
-                return Ok(new PostRoomRequest.Response(room));
+                return Ok(new RoomResponse(room));
             }
             catch (Exception ex)
             {
@@ -46,12 +42,7 @@ namespace BHG.WebService
         }
 
         [HttpPost]
-        [Consumes(MediaTypeNames.Application.Json)]
-        [Produces(MediaTypeNames.Application.Json)]
-        [ProducesResponseType<PostRoomRequest.Response>(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<PostRoomRequest.Response> Post([FromBody] PostRoomRequest model, CancellationToken cancellationToken)
+        public ActionResult<RoomResponse> Post([FromBody] PostRoomRequest model)
         {
             const string func = "Post";
             try
@@ -62,7 +53,7 @@ namespace BHG.WebService
 
                 var room = DyingMessageGameManager.GetInstance().CreateSession(roomCode, model.UserName);
 
-                return Ok(new PostRoomRequest.Response(room));
+                return Ok(new RoomResponse(room));
             }
             catch (Exception ex)
             {
@@ -71,22 +62,17 @@ namespace BHG.WebService
             }
         }
 
-        [HttpPatch("{roomCode}")]
-        [Consumes(MediaTypeNames.Application.Json)]
-        [Produces(MediaTypeNames.Application.Json)]
-        [ProducesResponseType<PostRoomRequest.Response>(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<PostRoomRequest.Response> Patch([FromRoute] string roomCode, [FromBody] PostRoomRequest model, CancellationToken cancellationToken)
+        [HttpPost("{roomCode}/join")]
+        public ActionResult<RoomResponse> Join([FromRoute] string roomCode, [FromBody] PostRoomRequest model)
         {
-            const string func = "Patch";
+            const string func = "Join";
             try
             {
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
                 var room = DyingMessageGameManager.GetInstance().JoinRoomSession(roomCode, model.UserName);
 
-                return Ok(new PostRoomRequest.Response(room));
+                return Ok(new RoomResponse(room));
             }
             catch (Exception ex)
             {
@@ -95,32 +81,19 @@ namespace BHG.WebService
             }
         }
 
-        [HttpPost("{roomCode}/start-game")]
-        [Consumes(MediaTypeNames.Application.Json)]
-        [Produces(MediaTypeNames.Application.Json)]
-        [ProducesResponseType<PostRoomRequest.Response>(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<PostRoomRequest.Response>> StartGame([FromRoute] string roomCode, [FromBody] PostRoomRequest model, CancellationToken cancellationToken)
+        [HttpPost("{roomCode}/config")]
+        public ActionResult<RoomResponse> Config([FromRoute] string roomCode, [FromBody] RoomConfigRequest model)
         {
-            const string func = "StartGame";
+            const string func = "Config";
             try
             {
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
-                var gameMan = DyingMessageGameManager.GetInstance();
-                var room = gameMan.GetRoomSession(roomCode);
-                if (room != null)
-                {
-                    var hostPlayer = room.Players.Find(x => x.UserName == model.UserName);
-                    if (hostPlayer.IsHost)
-                    {
-                        room = await gameMan.StartGame(roomCode, _hubContext);
-                        return Ok(new PostRoomRequest.Response(room));
-                    }
-                }
+                var instance = DyingMessageGameManager.GetInstance();
 
-                return BadRequest();
+                instance.ConfigGame(roomCode, model.ExtraRoles);
+
+                return Ok(new RoomResponse(instance.GetRoomSession(roomCode)));
             }
             catch (Exception ex)
             {

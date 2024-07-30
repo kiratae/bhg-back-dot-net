@@ -1,4 +1,6 @@
 ﻿
+using System.Text.Json.Serialization;
+
 namespace BHG.WebService
 {
     public class Player
@@ -6,7 +8,7 @@ namespace BHG.WebService
         public Player()
         {
             RoleId = PlayerRole.Unknown;
-            StatusId = PlayerStatus.Waiting;
+            StatusId = PlayerStatus.Unknown;
         }
 
         public Player(string userName) : this()
@@ -21,5 +23,10 @@ namespace BHG.WebService
         public PlayerStatus StatusId { get; set; }
 
         public bool IsHost { get; set; }
+
+        public bool IsProtected { get; set; }
+
+        [JsonIgnore]
+        public bool IsVoted { get; set; }
     }
 }

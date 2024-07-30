@@ -33,9 +33,15 @@ namespace BHG.WebService
 
             app.UseAuthorization();
 
+#if !DEBUG
+            app.UseMiddleware<ApiKeyMiddleware>();
+#endif
+
             app.MapControllers();
 
             app.MapHub<GameHub>("/game/{roomCode}");
+
+            app.MapGet("/health_check", () => "App online");
 
             app.Run();
         }

@@ -6,11 +6,11 @@
 
         private AppConfig()
         {
-            MongoDBConnectionString = Environment.GetEnvironmentVariable("MongoDB_ConnectionString");
+            ApiKey = Environment.GetEnvironmentVariable("ApiKey");
         }
 
-        public static AppConfig GetInstance => _instance ??= new AppConfig();
+        public static AppConfig GetInstance() => _instance ??= new AppConfig();
 
-        public string MongoDBConnectionString { get; protected set; }
+        public string ApiKey { get; protected set; }
     }
 }

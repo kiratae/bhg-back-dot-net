@@ -6,6 +6,7 @@ namespace BHG.WebService
     {
         protected const string RoomRouteKey = "roomCode";
         public const string RoomSendMsg = "RoomSend";
+        public const string RoomSendData = "RoomDataSend";
 
         private static readonly Dictionary<string, string> UserSession = [];
 

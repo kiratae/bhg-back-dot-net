@@ -2,8 +2,9 @@
 {
     public enum PlayerStatus : byte
     {
-        Waiting = 1,
-        Alive = 2,
-        Dead = 3,
+        Unknown = 0,
+        Alive = 1,
+        Dead = 2,
+        Dying = 3,
     }
 }
