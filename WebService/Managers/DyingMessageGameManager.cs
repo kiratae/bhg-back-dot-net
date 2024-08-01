@@ -40,6 +40,11 @@ namespace BHG.WebService
             }
         }
 
+        public List<Room> GetActiveSession()
+        {
+            return [.. _roomSession.Values];
+        }
+
         public Room CreateSession(string roomCode, string hostUserName)
         {
             var room = new Room(roomCode);

@@ -6,7 +6,7 @@ namespace BHG.WebService
     public class RoomWorker : BackgroundService
     {
         private readonly ILogger<RoomWorker> _logger;
-        private static readonly CrontabSchedule _schedule = CrontabSchedule.Parse("*/30 * * * *");
+        private static readonly CrontabSchedule _schedule = CrontabSchedule.Parse("0 */1 * * *");
         private static DateTime _nextRun;
 
         public RoomWorker(ILogger<RoomWorker> logger)
@@ -21,17 +21,20 @@ namespace BHG.WebService
             {
                 await Task.Yield();
 
-                _logger.LogInformation($"{func}: Worker start initializing.");
+                _logger.LogInformation("{func}: Room worker start initializing.", func);
 
                 _nextRun = DateTime.Now;
+                var instance = DyingMessageGameManager.GetInstance();
 
-                _logger.LogInformation($"{func}: Worker has been initialized.");
+                _logger.LogInformation("{func}: Room worker has been initialized.", func);
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     if (DateTime.Now > _nextRun)
                     {
-                        DyingMessageGameManager.GetInstance().ClearInactiveSessions();
+                        instance.ClearInactiveSessions();
+
+                        _logger.LogInformation("{func}: Current active {acitveRoomCount} rooms.", func, instance.GetActiveSession().Count);
 
                         _nextRun = _schedule.GetNextOccurrence(DateTime.Now);
                     }
@@ -39,11 +42,11 @@ namespace BHG.WebService
                     await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
                 }
 
-                _logger.LogInformation($"{func}: Work has been stopped.");
+                _logger.LogInformation("{func}: Room worker has been stopped.", func);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"{func}: Exception caugth.");
+                _logger.LogError(ex, "{func}: Exception caugth.", func);
                 throw;
             }
         }
