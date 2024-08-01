@@ -8,12 +8,13 @@ namespace BHG.WebService
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-
             builder.Services.AddControllers();
 
             builder.Services.AddHostedService<RoomWorker>();
 
             builder.Services.AddSignalR();
+
+            builder.Services.AddLogging(builder => builder.AddConsole());
 
             string apiKey = builder.Configuration.GetValue<string>("ApiKey");
             if (!string.IsNullOrEmpty(apiKey))
