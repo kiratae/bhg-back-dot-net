@@ -23,6 +23,7 @@ namespace BHG.WebService
         }
 
         [HttpGet("{roomCode}")]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public ActionResult<RoomResponse> Get([FromRoute] string roomCode)
         {
             const string func = "Get";
@@ -31,6 +32,7 @@ namespace BHG.WebService
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
                 var room = DyingMessageGameManager.GetInstance().GetRoomSession(roomCode);
+                if (room == null) return NotFound();
 
                 return Ok(new RoomResponse(room));
             }
@@ -63,6 +65,7 @@ namespace BHG.WebService
         }
 
         [HttpPost("{roomCode}/join")]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public ActionResult<RoomResponse> Join([FromRoute] string roomCode, [FromBody] PostRoomRequest model)
         {
             const string func = "Join";
@@ -71,6 +74,7 @@ namespace BHG.WebService
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
                 var room = DyingMessageGameManager.GetInstance().JoinRoomSession(roomCode, model.UserName);
+                if (room == null) return NotFound();
 
                 return Ok(new RoomResponse(room));
             }
@@ -82,6 +86,7 @@ namespace BHG.WebService
         }
 
         [HttpPost("{roomCode}/config")]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public ActionResult<RoomResponse> Config([FromRoute] string roomCode, [FromBody] RoomConfigRequest model)
         {
             const string func = "Config";
@@ -90,8 +95,10 @@ namespace BHG.WebService
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
                 var instance = DyingMessageGameManager.GetInstance();
+                var room = instance.GetRoomSession(roomCode);
+                if (room == null) return NotFound();
 
-                instance.ConfigGame(roomCode, model.ExtraRoles);
+                instance.ConfigGame(room.RoomCode, model.ExtraRoles);
 
                 return Ok(new RoomResponse(instance.GetRoomSession(roomCode)));
             }
