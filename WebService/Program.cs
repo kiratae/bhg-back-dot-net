@@ -1,8 +1,12 @@
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 namespace BHG.WebService
 {
     public class Program
     {
+        public const string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +20,17 @@ namespace BHG.WebService
 
             builder.Services.AddLogging(builder => builder.AddConsole());
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(name: MyAllowSpecificOrigins,
+                                  policy =>
+                                  {
+                                      policy.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+                                  });
+            });
+
+            builder.Services.AddHealthChecks();
+
             string apiKey = builder.Configuration.GetValue<string>("ApiKey");
             if (!string.IsNullOrEmpty(apiKey))
                 Environment.SetEnvironmentVariable("ApiKey", apiKey);
@@ -28,9 +43,10 @@ namespace BHG.WebService
 
             }
 
-            app.UseStaticFiles();
-
             //app.UseHttpsRedirection();
+            app.UseStaticFiles();
+            app.UseCors(MyAllowSpecificOrigins);
+            app.UseRouting();
 
             app.UseAuthorization();
 
@@ -38,9 +54,9 @@ namespace BHG.WebService
 
             app.MapControllers();
 
-            app.MapHub<GameHub>("/game/{roomCode}");
+            app.MapHub<GameHub>("/game/{roomCode:regex(\\w+-\\w+-\\w+)}");
 
-            app.MapGet("/health_check", () => "App online");
+            app.MapHealthChecks("/healthz");
 
             app.Run();
         }
