@@ -1,5 +1,4 @@
 
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace BHG.WebService
 {
