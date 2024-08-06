@@ -137,7 +137,7 @@ namespace BHG.WebService
                     room.ModifyDate = DateTime.Now;
                 }
                 await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Game has beed start.");
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
                 _ = Task.Run(async () =>
                 {
@@ -148,7 +148,7 @@ namespace BHG.WebService
                         room.ModifyDate = DateTime.Now;
                     }
                     await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Killer turn.");
-                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
                 }).ConfigureAwait(false);
             }
@@ -191,7 +191,7 @@ namespace BHG.WebService
                     room.ModifyDate = DateTime.Now;
                 }
 
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
             }
 
             return room;
@@ -215,7 +215,7 @@ namespace BHG.WebService
                 }
 
                 await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {(killerTeamWin ? "Killer" : "Civilian")} team is win.");
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
             }
 
             return killerTeamWin || civilianTeamWin;
@@ -237,7 +237,7 @@ namespace BHG.WebService
                 }
                 room.ModifyDate = DateTime.Now;
             }
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
             return room;
         }
@@ -256,7 +256,7 @@ namespace BHG.WebService
                 }
                 room.ModifyDate = DateTime.Now;
             }
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
             return room;
         }
@@ -302,7 +302,7 @@ namespace BHG.WebService
 
                 room.ModifyDate = DateTime.Now;
             }
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
             return room;
         }

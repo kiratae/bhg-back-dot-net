@@ -78,10 +78,5 @@ namespace BHG.WebService
             var player = GetPlayer(userName);
             return player != null && player.StatusId == statusId;
         }
-
-        public string ToJsonString()
-        {
-            return JsonSerializer.Serialize(this);
-        }
     }
 }

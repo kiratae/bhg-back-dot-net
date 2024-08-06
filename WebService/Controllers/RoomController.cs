@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using CrypticWizard.RandomWordGenerator;
 using static CrypticWizard.RandomWordGenerator.WordGenerator;
 using System.Net.Mime;
+using Microsoft.AspNetCore.SignalR;
 
 namespace BHG.WebService
 {
@@ -14,12 +15,14 @@ namespace BHG.WebService
     public class RoomController : BaseController
     {
         private readonly ILogger<RoomController> _logger;
+        private readonly IHubContext<GameHub> _hubContext;
         private static readonly WordGenerator _wordGenerator = new();
         private static readonly List<PartOfSpeech> _wordPattern = [PartOfSpeech.adj, PartOfSpeech.noun, PartOfSpeech.verb];
 
-        public RoomController(ILogger<RoomController> logger)
+        public RoomController(ILogger<RoomController> logger, IHubContext<GameHub> hubContext)
         {
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         [HttpGet("{roomCode}")]
@@ -66,7 +69,7 @@ namespace BHG.WebService
 
         [HttpPost("{roomCode}/join")]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public ActionResult<RoomResponse> Join([FromRoute] string roomCode, [FromBody] PostRoomRequest model)
+        public async Task<ActionResult<RoomResponse>> Join([FromRoute] string roomCode, [FromBody] PostRoomRequest model)
         {
             const string func = "Join";
             try
@@ -75,6 +78,8 @@ namespace BHG.WebService
 
                 var room = DyingMessageGameManager.GetInstance().JoinRoomSession(roomCode, model.UserName);
                 if (room == null) return NotFound();
+
+                await _hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomJoinedMsg, room);
 
                 return Ok(new RoomResponse(room));
             }
