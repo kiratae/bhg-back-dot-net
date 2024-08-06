@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using CrypticWizard.RandomWordGenerator;
 using static CrypticWizard.RandomWordGenerator.WordGenerator;
 using System.Net.Mime;
+using Microsoft.AspNetCore.SignalR;
 
 namespace BHG.WebService
 {
@@ -14,15 +15,18 @@ namespace BHG.WebService
     public class RoomController : BaseController
     {
         private readonly ILogger<RoomController> _logger;
+        private readonly IHubContext<GameHub> _hubContext;
         private static readonly WordGenerator _wordGenerator = new();
         private static readonly List<PartOfSpeech> _wordPattern = [PartOfSpeech.adj, PartOfSpeech.noun, PartOfSpeech.verb];
 
-        public RoomController(ILogger<RoomController> logger)
+        public RoomController(ILogger<RoomController> logger, IHubContext<GameHub> hubContext)
         {
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         [HttpGet("{roomCode}")]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public ActionResult<RoomResponse> Get([FromRoute] string roomCode)
         {
             const string func = "Get";
@@ -31,6 +35,7 @@ namespace BHG.WebService
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
                 var room = DyingMessageGameManager.GetInstance().GetRoomSession(roomCode);
+                if (room == null) return NotFound();
 
                 return Ok(new RoomResponse(room));
             }
@@ -63,7 +68,8 @@ namespace BHG.WebService
         }
 
         [HttpPost("{roomCode}/join")]
-        public ActionResult<RoomResponse> Join([FromRoute] string roomCode, [FromBody] PostRoomRequest model)
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<RoomResponse>> Join([FromRoute] string roomCode, [FromBody] PostRoomRequest model)
         {
             const string func = "Join";
             try
@@ -71,6 +77,9 @@ namespace BHG.WebService
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
                 var room = DyingMessageGameManager.GetInstance().JoinRoomSession(roomCode, model.UserName);
+                if (room == null) return NotFound();
+
+                await _hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomJoinedMsg, room);
 
                 return Ok(new RoomResponse(room));
             }
@@ -82,6 +91,7 @@ namespace BHG.WebService
         }
 
         [HttpPost("{roomCode}/config")]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public ActionResult<RoomResponse> Config([FromRoute] string roomCode, [FromBody] RoomConfigRequest model)
         {
             const string func = "Config";
@@ -90,8 +100,10 @@ namespace BHG.WebService
                 if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roomCode)) return BadRequest();
 
                 var instance = DyingMessageGameManager.GetInstance();
+                var room = instance.GetRoomSession(roomCode);
+                if (room == null) return NotFound();
 
-                instance.ConfigGame(roomCode, model.ExtraRoles);
+                instance.ConfigGame(room.RoomCode, model.ExtraRoles);
 
                 return Ok(new RoomResponse(instance.GetRoomSession(roomCode)));
             }

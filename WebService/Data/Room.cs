@@ -9,6 +9,7 @@ namespace BHG.WebService
         {
             RoomCode = roomCode;
             GameStateId = GameState.Waiting;
+            CreateDate = DateTime.Now;
         }
 
         public string RoomCode { get; set; }
@@ -29,6 +30,12 @@ namespace BHG.WebService
         public List<Card> DiscardCards { get; protected set; } = [];
 
         public List<PlayerRole> ExtraRoles { get; protected set; } = [];
+
+        [JsonIgnore]
+        public DateTime CreateDate { get; protected set; }
+
+        [JsonIgnore]
+        public DateTime? ModifyDate { get; set; }
 
         [JsonIgnore]
         public bool HasDogJarvisRole => ExtraRoles.Any(x => x == PlayerRole.DogJarvis);
@@ -70,11 +77,6 @@ namespace BHG.WebService
 
             var player = GetPlayer(userName);
             return player != null && player.StatusId == statusId;
-        }
-
-        public string ToJsonString()
-        {
-            return JsonSerializer.Serialize(this);
         }
     }
 }

@@ -22,6 +22,29 @@ namespace BHG.WebService
             return _instance;
         }
 
+        public void ClearInactiveSessions()
+        {
+            DateTime now = DateTime.Now;
+            foreach (var key in _roomSession.Keys)
+            {
+                var room = _roomSession[key];
+                DateTime lastModifyDate = room.ModifyDate ?? room.CreateDate;
+                TimeSpan inactiveTime = now - lastModifyDate;
+                if (inactiveTime.Minutes >= 30)
+                {
+                    lock (_roomSession)
+                    {
+                        _roomSession.Remove(key);
+                    }
+                }
+            }
+        }
+
+        public List<Room> GetActiveSession()
+        {
+            return [.. _roomSession.Values];
+        }
+
         public Room CreateSession(string roomCode, string hostUserName)
         {
             var room = new Room(roomCode);
@@ -54,6 +77,7 @@ namespace BHG.WebService
                 lock (value.Players)
                 {
                     value.Players.Add(player);
+                    value.ModifyDate = DateTime.Now;
                 }
             }
             return value;
@@ -70,6 +94,7 @@ namespace BHG.WebService
                     {
                         room.ExtraRoles.Clear();
                         room.ExtraRoles.AddRange(extraRoles);
+                        room.ModifyDate = DateTime.Now;
                     }
                 }
             }
@@ -109,9 +134,10 @@ namespace BHG.WebService
                     room.GameStateId = GameState.Start;
                     room.GameRound = 1;
                     room.CardDecks.AddRange(cardDecks);
+                    room.ModifyDate = DateTime.Now;
                 }
                 await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Game has beed start.");
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
                 _ = Task.Run(async () =>
                 {
@@ -119,9 +145,10 @@ namespace BHG.WebService
                     lock (room)
                     {
                         room.GameStateId = GameState.KillerTurn;
+                        room.ModifyDate = DateTime.Now;
                     }
                     await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Killer turn.");
-                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
                 }).ConfigureAwait(false);
             }
@@ -150,6 +177,7 @@ namespace BHG.WebService
                         player.StatusId = PlayerStatus.Dying;
                     }
                 }
+                room.ModifyDate = DateTime.Now;
             }
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {targetUserName} is dying he/she will choose evidence.");
 
@@ -160,9 +188,10 @@ namespace BHG.WebService
                 lock (room)
                 {
                     room.GameStateId = GameState.LeaveDyingMessageTime;
+                    room.ModifyDate = DateTime.Now;
                 }
 
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
             }
 
             return room;
@@ -182,10 +211,11 @@ namespace BHG.WebService
                 lock (room)
                 {
                     room.GameStateId = GameState.GameOver;
+                    room.ModifyDate = DateTime.Now;
                 }
 
                 await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {(killerTeamWin ? "Killer" : "Civilian")} team is win.");
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
             }
 
             return killerTeamWin || civilianTeamWin;
@@ -205,8 +235,9 @@ namespace BHG.WebService
                 {
                     player.IsProtected = true;
                 }
+                room.ModifyDate = DateTime.Now;
             }
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
             return room;
         }
@@ -223,8 +254,9 @@ namespace BHG.WebService
                 {
                     card.StatusId = CardStatus.RealEvidence;
                 }
+                room.ModifyDate = DateTime.Now;
             }
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
             return room;
         }
@@ -267,8 +299,10 @@ namespace BHG.WebService
 
                     room.HandCards.Clear();
                 }
+
+                room.ModifyDate = DateTime.Now;
             }
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room.ToJsonString());
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
             return room;
         }
@@ -309,6 +343,8 @@ namespace BHG.WebService
                         room.CardDecks.RemoveAt(index);
                     }
                 }
+
+                room.ModifyDate = DateTime.Now;
             }
 
             return room;

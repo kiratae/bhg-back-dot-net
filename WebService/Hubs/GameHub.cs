@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 
 namespace BHG.WebService
 {
@@ -6,13 +7,20 @@ namespace BHG.WebService
     {
         protected const string RoomRouteKey = "roomCode";
         public const string RoomSendMsg = "RoomSend";
+        public const string RoomJoinedMsg = "RoomJoined";
         public const string RoomSendData = "RoomDataSend";
 
         private static readonly Dictionary<string, string> UserSession = [];
 
         protected string GetRoomCode()
         {
-            return (string)Context.GetHttpContext().GetRouteValue(RoomRouteKey);
+            var httpContext = Context.GetHttpContext();
+            if (!httpContext.Request.Path.HasValue) return null;
+
+            var splited = httpContext.Request.Path.Value.Split('/');
+            if (splited.Length != 3) return null;
+
+            return splited[2];
         }
 
         protected string GetUserName()
@@ -22,13 +30,16 @@ namespace BHG.WebService
 
         public override async Task OnConnectedAsync()
         {
-            string roomCode = GetRoomCode();
-
-            await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
-
             await base.OnConnectedAsync();
 
-            await Clients.Group(roomCode).SendAsync(RoomSendMsg, $"System: {Context.ConnectionId} has joined the room '{roomCode}'.");
+            string roomCode = GetRoomCode();
+            if (!string.IsNullOrEmpty(roomCode))
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomCode);
+                await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
+
+                await Clients.Group(roomCode).SendAsync(RoomSendMsg, $"System: {Context.ConnectionId} has joined the room '{roomCode}'.");
+            }
         }
 
         public async Task SetUserName(string userName)

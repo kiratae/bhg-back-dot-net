@@ -21,6 +21,7 @@ namespace BHG.WebService
 
         [HttpPost("{roomCode}")]
         [ProducesResponseType<RoomResponse>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<RoomResponse>> DoAction([FromRoute] string roomCode, [FromBody] PostDMGameRequest model)
         {
             const string func = "DoAction";
@@ -30,7 +31,9 @@ namespace BHG.WebService
 
                 var gameMan = DyingMessageGameManager.GetInstance();
                 var room = gameMan.GetRoomSession(roomCode);
-                if (room != null && model.AcionTypeId.HasValue)
+                if (room == null) return NotFound();
+
+                if (model.AcionTypeId.HasValue)
                 {
                     if (model.AcionTypeId.Value == DMGameAction.StartGame)
                     {

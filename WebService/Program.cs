@@ -1,19 +1,34 @@
 
+
 namespace BHG.WebService
 {
     public class Program
     {
+        public const string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
+
+            builder.Services.AddHostedService<RoomWorker>();
 
             builder.Services.AddSignalR();
+
+            builder.Services.AddLogging(builder => builder.AddConsole());
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(name: MyAllowSpecificOrigins,
+                                  policy =>
+                                  {
+                                      policy.WithOrigins("http://localhost:3000", "https://bear-hunt-game.netlify.app").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+                                  });
+            });
+
+            builder.Services.AddHealthChecks();
 
             string apiKey = builder.Configuration.GetValue<string>("ApiKey");
             if (!string.IsNullOrEmpty(apiKey))
@@ -27,9 +42,10 @@ namespace BHG.WebService
 
             }
 
+            //app.UseHttpsRedirection();
             app.UseStaticFiles();
-
-            app.UseHttpsRedirection();
+            app.UseCors(MyAllowSpecificOrigins);
+            app.UseRouting();
 
             app.UseAuthorization();
 
@@ -37,9 +53,9 @@ namespace BHG.WebService
 
             app.MapControllers();
 
-            app.MapHub<GameHub>("/game/{roomCode}");
+            app.MapHub<GameHub>("/game/{roomCode:regex(\\w+-\\w+-\\w+)}");
 
-            app.MapGet("/health_check", () => "App online");
+            app.MapHealthChecks("/healthz");
 
             app.Run();
         }

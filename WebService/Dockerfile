@@ -3,16 +3,14 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 USER app
 WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["WebService/WebService.csproj", "WebService/"]
-RUN dotnet restore "./WebService/WebService.csproj"
 COPY . .
-WORKDIR "/src/WebService"
+RUN dotnet restore "./WebService.csproj"
+COPY . .
+WORKDIR /src
 RUN dotnet build "./WebService.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
@@ -20,6 +18,9 @@ ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./WebService.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
-WORKDIR /app
+WORKDIR /opt/webapp
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "BHG.WebService.dll"]
+
+# ENTRYPOINT ["dotnet", "BHG.WebService.dll"]
+# Use the following instead for Heroku
+CMD ASPNETCORE_URLS=http://*:$PORT dotnet BHG.WebService.dll
