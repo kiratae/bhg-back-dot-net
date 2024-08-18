@@ -20,7 +20,7 @@ namespace BHG.WebService
 
         public List<Player> Players { get; protected set; } = [];
 
-        public Dictionary<int, List<Card>> InGameCards { get; protected set; } = [];
+        public Dictionary<int, List<Card>> Cards { get; protected set; } = [];
 
         public List<Card> HandCards { get; protected set; } = [];
 

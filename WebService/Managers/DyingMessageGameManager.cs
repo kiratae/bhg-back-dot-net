@@ -144,7 +144,7 @@ namespace BHG.WebService
                     await Task.Delay(TimeSpan.FromSeconds(3));
                     lock (room)
                     {
-                        room.GameStateId = GameState.KillerTurn;
+                        room.GameStateId = room.HasDogJarvisRole ? GameState.ProtectorTurn : GameState.KillerTurn;
                         room.ModifyDate = DateTime.Now;
                     }
                     await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Killer turn.");
@@ -242,18 +242,20 @@ namespace BHG.WebService
             return room;
         }
 
-        public async Task<Room> DeadChooseEvidence(string roomCode, int cardId, IHubContext<GameHub> hubContext)
+        public async Task<Room> DyingChooseEvidence(string roomCode, int cardId, IHubContext<GameHub> hubContext)
         {
             var room = GetRoomSession(roomCode) ?? throw new ArgumentOutOfRangeException(roomCode);
 
             lock (room)
             {
-                var card = room.HandCards.Find(x => x.CardId == cardId) ?? throw new Exception($"Card id {cardId} not found in HandCards of room code {roomCode}.");
+                var card = room.Cards[room.GameRound].Find(x => x.CardId == cardId) ?? throw new Exception($"Card id {cardId} not found in HandCards of room code {roomCode}.");
 
                 lock (card)
                 {
                     card.StatusId = CardStatus.RealEvidence;
                 }
+
+                room.GameStateId = GameState.LeaveFakeEvidenceTime;
                 room.ModifyDate = DateTime.Now;
             }
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
@@ -269,7 +271,7 @@ namespace BHG.WebService
             {
                 foreach (var cardId in cardIds)
                 {
-                    var card = room.HandCards.Find(x => x.CardId == cardId) ?? throw new Exception($"Card id {cardId} not found in HandCards of room code {roomCode}.");
+                    var card = room.Cards[room.GameRound].Find(x => x.CardId == cardId) ?? throw new Exception($"Card id {cardId} not found in HandCards of room code {roomCode}.");
 
                     lock (card)
                     {
@@ -278,11 +280,11 @@ namespace BHG.WebService
                 }
 
                 var discardedCardIndexes = new HashSet<int>();
-                lock (room.HandCards)
+                lock (room.Cards[room.GameRound])
                 {
-                    for (int i = 0; i < room.HandCards.Count; i++)
+                    for (int i = 0; i < room.Cards[room.GameRound].Count; i++)
                     {
-                        var card = room.HandCards[i];
+                        var card = room.Cards[room.GameRound][i];
                         if (card.StatusId == CardStatus.Unknown)
                         {
                             lock (card)
@@ -296,10 +298,9 @@ namespace BHG.WebService
                             }
                         }
                     }
-
-                    room.HandCards.Clear();
                 }
 
+                room.GameStateId = GameState.DiscussTime;
                 room.ModifyDate = DateTime.Now;
             }
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
@@ -316,23 +317,21 @@ namespace BHG.WebService
             int cardDeckQty = room.CardDecks.Count;
             var cardIndexes = new HashSet<int>();
             var cardIds = new HashSet<int>();
+            var cards = new List<Card>();
             for (int i = 0; i < maxPrepareCard; i++)
             {
-                cardIndexes.Add(GetRandomIndex(cardDeckQty, cardIndexes));
+                int cardIndex = GetRandomIndex(cardDeckQty, cardIndexes);
+                cardIndexes.Add(cardIndex);
+                var card = room.CardDecks[cardIndex];
+                cards.Add(card);
+                cardIds.Add(card.CardId);
             }
 
             lock (room)
             {
-                lock (room.HandCards)
+                lock (room.Cards)
                 {
-                    room.HandCards.Clear();
-
-                    foreach (var cardIndex in cardIndexes)
-                    {
-                        var card = room.CardDecks[cardIndex];
-                        room.HandCards.Add(card);
-                        cardIds.Add(card.CardId);
-                    }
+                    room.Cards[room.GameRound] = cards;
                 }
 
                 lock (room.CardDecks)

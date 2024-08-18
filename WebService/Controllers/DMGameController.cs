@@ -63,7 +63,7 @@ namespace BHG.WebService
                     {
                         if (room.IsPlayerStatus(model.UserName, PlayerStatus.Dying) && model.TargetCardIds.Count == 1)
                         {
-                            room = await gameMan.DeadChooseEvidence(roomCode, model.TargetCardIds.First(), _hubContext);
+                            room = await gameMan.DyingChooseEvidence(roomCode, model.TargetCardIds.First(), _hubContext);
                             return Ok(new RoomResponse(room));
                         }
                     }
