@@ -9,6 +9,8 @@ namespace BHG.WebService
     {
         private static DyingMessageGameManager _instance = null;
 
+        public const int DefaultDiscussTime = 30;
+
         protected static readonly Dictionary<string, Room> _roomSession = [];
 
         private DyingMessageGameManager()
@@ -301,8 +303,138 @@ namespace BHG.WebService
                 }
 
                 room.GameStateId = GameState.DiscussTime;
+                room.DiscussTimeRemain = DefaultDiscussTime;
                 room.ModifyDate = DateTime.Now;
             }
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
+
+            
+                _ = Task.Run(async () =>
+                {
+                    for (int i = room.DiscussTimeRemain; i > 0; i--)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(1));
+                        lock (room)
+                        {
+                            room.DiscussTimeRemain = i;
+                            room.ModifyDate = DateTime.Now;
+                        }
+                        await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendDiscussTime, i);
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+
+                    lock (room)
+                    {
+                        room.GameStateId = GameState.VoteOutTime;
+                        room.DiscussTimeRemain = 0;
+                        room.VoteStat.Clear();
+                        room.VoteLog.Clear();
+                        room.ModifyDate = DateTime.Now;
+                    }
+                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Time to vote killer.");
+                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
+                }).ConfigureAwait(false);
+            
+
+            return room;
+        }
+
+        public async Task<Room> VotePlayer(string roomCode, string userName, string targetUserName, IHubContext<GameHub> hubContext)
+        {
+            var room = GetRoomSession(roomCode) ?? throw new ArgumentOutOfRangeException(roomCode);
+            var player = room.GetPlayer(userName) ?? throw new ArgumentOutOfRangeException(userName);
+            var targetPlayer = room.GetPlayer(targetUserName) ?? throw new ArgumentOutOfRangeException(targetUserName);
+
+            lock (room)
+            {
+                if (!room.VoteLog.Contains(player.UserName))
+                {
+                    if (room.VoteStat.ContainsKey(targetPlayer.UserName))
+                    {
+                        room.VoteStat[targetPlayer.UserName] += 1;
+                    }
+                    else
+                    {
+                        room.VoteStat.Add(targetPlayer.UserName, 1);
+                    }
+                    room.VoteLog.Add(player.UserName);
+                }
+
+                room.ModifyDate = DateTime.Now;
+            }
+
+            // Everyone is voted.
+            if (room.VoteLog.Count == room.Players.Count)
+            {
+                int maxVoteQty = room.VoteStat.Max(x => x.Value);
+                var maxVotePlayers = room.VoteStat.Where(x => x.Value == maxVoteQty);
+                int highVoteQty = maxVotePlayers.Count();
+                if (highVoteQty > 0 && highVoteQty != room.Players.Count)
+                {
+                    lock (room)
+                    {
+                        foreach (var item in maxVotePlayers)
+                        {
+                            var votePlayer = room.Players.FirstOrDefault(x => x.UserName == item.Key);
+                            votePlayer.StatusId = PlayerStatus.Hanging;
+                        }
+                        room.ModifyDate = DateTime.Now;
+                    }
+                }
+            }
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {userName} vote {targetUserName}.");
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
+
+            return room;
+        }
+
+        public async Task<Room> VoteForKillPlayer(string roomCode, string userName, string targetUserName, IHubContext<GameHub> hubContext)
+        {
+            var room = GetRoomSession(roomCode) ?? throw new ArgumentOutOfRangeException(roomCode);
+            var player = room.GetPlayer(userName) ?? throw new ArgumentOutOfRangeException(userName);
+            var targetPlayer = room.GetPlayer(targetUserName) ?? throw new ArgumentOutOfRangeException(targetUserName);
+
+            if (!targetPlayer.IsVoted) return null;
+
+            lock (room)
+            {
+                if (!room.VoteLog.Contains(player.UserName))
+                {
+                    if (room.VoteStat.ContainsKey(targetPlayer.UserName))
+                    {
+                        room.VoteStat[targetPlayer.UserName] += 1;
+                    }
+                    else
+                    {
+                        room.VoteStat.Add(targetPlayer.UserName, 1);
+                    }
+                    room.VoteLog.Add(player.UserName);
+                }
+
+                room.ModifyDate = DateTime.Now;
+            }
+
+            // Everyone is voted.
+            if (room.VoteLog.Count == room.Players.Count)
+            {
+                int maxVoteQty = room.VoteStat.Max(x => x.Value);
+                var maxVotePlayers = room.VoteStat.Where(x => x.Value == maxVoteQty);
+                int highVoteQty = maxVotePlayers.Count();
+                if (highVoteQty > 0 && highVoteQty != room.Players.Count)
+                {
+                    lock (room)
+                    {
+                        foreach (var item in maxVotePlayers)
+                        {
+                            var votePlayer = room.Players.FirstOrDefault(x => x.UserName == item.Key);
+                            votePlayer.IsVoted = true;
+                        }
+                        room.ModifyDate = DateTime.Now;
+                    }
+                }
+            }
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {userName} vote {targetUserName}.");
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
             return room;

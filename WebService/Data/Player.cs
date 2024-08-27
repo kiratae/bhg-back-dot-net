@@ -25,8 +25,5 @@ namespace BHG.WebService
         public bool IsHost { get; set; }
 
         public bool IsProtected { get; set; }
-
-        [JsonIgnore]
-        public bool IsVoted { get; set; }
     }
 }

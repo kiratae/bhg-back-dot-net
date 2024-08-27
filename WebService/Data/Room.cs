@@ -40,6 +40,12 @@ namespace BHG.WebService
         [JsonIgnore]
         public bool HasDogJarvisRole => ExtraRoles.Any(x => x == PlayerRole.DogJarvis);
 
+        public Dictionary<string, int> VoteStat = new Dictionary<string, int>();
+
+        public List<string> VoteLog = new List<string>();
+
+        public int DiscussTimeRemain { get; set; }
+
         public bool IsPlayerInRoom(string userName)
         {
             return Players.Any(x => x.UserName == userName);

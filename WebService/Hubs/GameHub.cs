@@ -9,6 +9,7 @@ namespace BHG.WebService
         public const string RoomSendMsg = "RoomSend";
         public const string RoomJoinedMsg = "RoomJoined";
         public const string RoomSendData = "RoomDataSend";
+        public const string RoomSendDiscussTime = "RoomDiscussTime";
 
         private static readonly Dictionary<string, string> UserSession = [];
 

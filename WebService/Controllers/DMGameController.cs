@@ -75,6 +75,14 @@ namespace BHG.WebService
                             return Ok(new RoomResponse(room));
                         }
                     }
+                    else if (model.AcionTypeId.Value == DMGameAction.VoteKillerOut)
+                    {
+                        if (room.IsPlayerStatus(model.UserName, PlayerStatus.Alive) && !string.IsNullOrWhiteSpace(model.TargetUserName))
+                        {
+                            room = await gameMan.VotePlayer(roomCode, model.UserName, model.TargetUserName, _hubContext);
+                            return Ok(new RoomResponse(room));
+                        }
+                    }
                 }
 
                 return BadRequest();
