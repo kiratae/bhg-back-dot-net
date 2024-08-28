@@ -7,9 +7,12 @@ namespace BHG.WebService
     {
         protected const string RoomRouteKey = "roomCode";
         public const string RoomSendMsg = "RoomSend";
+        public const string RoomSendLog = "RoomSendLog";
         public const string RoomJoinedMsg = "RoomJoined";
         public const string RoomSendData = "RoomDataSend";
         public const string RoomSendDiscussTime = "RoomDiscussTime";
+        public const string RoomSendPlayerDead = "RoomSendPlayerDead";
+        public const string RoomSendPlayerVote = "RoomSendPlayerVote";
 
         private static readonly Dictionary<string, string> UserSession = [];
 
@@ -39,7 +42,7 @@ namespace BHG.WebService
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomCode);
                 await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
-                await Clients.Group(roomCode).SendAsync(RoomSendMsg, $"System: {Context.ConnectionId} has joined the room '{roomCode}'.");
+                await Clients.Group(roomCode).SendAsync(RoomSendLog, $"System: {Context.ConnectionId} has joined the room '{roomCode}'.");
             }
         }
 
@@ -55,7 +58,7 @@ namespace BHG.WebService
 
             string roomCode = GetRoomCode();
 
-            await Clients.Group(roomCode).SendAsync(RoomSendMsg, $"System: {Context.ConnectionId} is user '{userName}'.");
+            await Clients.Group(roomCode).SendAsync(RoomSendLog, $"System: {Context.ConnectionId} is user '{userName}'.");
         }
 
         public async Task RemoveFromRoom(string roomName)
@@ -63,13 +66,13 @@ namespace BHG.WebService
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
 
             string userName = GetUserName();
-            await Clients.Group(roomName).SendAsync(RoomSendMsg, $"System: {userName ?? Context.ConnectionId} has left the room '{roomName}'.");
+            await Clients.Group(roomName).SendAsync(RoomSendLog, $"System: {userName ?? Context.ConnectionId} has left the room '{roomName}'.");
         }
 
         public async Task SendMessageRoom(string message)
         {
             string userName = GetUserName();
-            await Clients.Group(GetRoomCode()).SendAsync(RoomSendMsg, $"{userName ?? Context.ConnectionId}: {message}");
+            await Clients.Group(GetRoomCode()).SendAsync(RoomSendLog, $"{userName ?? Context.ConnectionId}: {message}");
         }
 
         public override async Task OnDisconnectedAsync(Exception exception)
@@ -79,7 +82,7 @@ namespace BHG.WebService
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
 
             string userName = GetUserName();
-            await Clients.Group(roomName).SendAsync(RoomSendMsg, $"System: {userName ?? Context.ConnectionId} has left the room '{roomName}'.");
+            await Clients.Group(roomName).SendAsync(RoomSendLog, $"System: {userName ?? Context.ConnectionId} has left the room '{roomName}'.");
 
             if (!string.IsNullOrEmpty(userName))
             {

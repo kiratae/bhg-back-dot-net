@@ -230,6 +230,7 @@ namespace BHG.WebService
                 room.ModifyDate = DateTime.Now;
             }
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {targetUserName} is dying he/she will choose evidence.");
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendPlayerDead, targetUserName);
 
             if (!await CheckGameOver(roomCode, hubContext))
             {
@@ -401,6 +402,8 @@ namespace BHG.WebService
             var player = room.GetPlayer(userName) ?? throw new ArgumentOutOfRangeException(userName);
             var targetPlayer = room.GetPlayer(targetUserName) ?? throw new ArgumentOutOfRangeException(targetUserName);
 
+            string candidate = null;
+
             lock (room)
             {
                 if (!room.PlayerVoteLogs.Contains(player.UserName))
@@ -408,47 +411,57 @@ namespace BHG.WebService
                     room.VoteHangingLogs.Add(targetPlayer.UserName);
                     room.PlayerVoteLogs.Add(player.UserName);
                 }
+
+                // Everyone is voted.
+                if (room.PlayerVoteLogs.Count == room.GetAlivePlayers().Count())
+                {
+                    int voteSize = room.VoteHangingLogs.Count;
+                    candidate = FindCandidate(room.VoteHangingLogs, voteSize);
+                    if (IsMajority(room.VoteHangingLogs, voteSize, candidate))
+                    {
+                        var candidatePlayer = room.GetPlayer(candidate);
+
+                        lock (room)
+                        {
+                            room.GameRound++;
+                            room.GameStateId = room.GetStartRoundGameState();
+                            room.ClearRoomLog();
+
+                            lock (candidatePlayer)
+                            {
+                                candidatePlayer.StatusId = PlayerStatus.Dead;
+                            }
+
+                            room.ModifyDate = DateTime.Now;
+                        }
+
+                    }
+                    else
+                    {
+                        lock (room)
+                        {
+                            room.GameRound++;
+                            room.GameStateId = room.GetStartRoundGameState();
+                            room.ClearRoomLog();
+                            room.ModifyDate = DateTime.Now;
+                        }
+                    }
+                }
+
                 room.ModifyDate = DateTime.Now;
             }
 
-            // Everyone is voted.
-            if (room.PlayerVoteLogs.Count == room.GetAlivePlayers().Count())
-            {
-                int voteSize = room.VoteHangingLogs.Count;
-                string candidate = FindCandidate(room.VoteHangingLogs, voteSize);
-                if (IsMajority(room.VoteHangingLogs, voteSize, candidate))
-                {
-                    var candidatePlayer = room.GetPlayer(candidate);
-
-                    lock (room)
-                    {
-                        room.GameRound++;
-                        room.GameStateId = room.GetStartRoundGameState();
-                        room.ClearRoomLog();
-
-                        lock (candidatePlayer)
-                        {
-                            candidatePlayer.StatusId = PlayerStatus.Dead;
-                        }
-
-                        room.ModifyDate = DateTime.Now;
-                    }
-
-                    await CheckGameOver(roomCode, hubContext);
-                }
-                else
-                {
-                    lock (room)
-                    {
-                        room.GameRound++;
-                        room.GameStateId = room.GetStartRoundGameState();
-                        room.ClearRoomLog();
-                        room.ModifyDate = DateTime.Now;
-                    }
-                }
-            }
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {userName} vote {targetUserName}.");
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendPlayerVote, targetUserName);
+
+            if (candidate != null)
+            {
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendPlayerDead, candidate);
+            }
+
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
+
+            await CheckGameOver(roomCode, hubContext);
 
             return room;
         }
