@@ -22,8 +22,6 @@ namespace BHG.WebService
 
         public Dictionary<int, List<Card>> Cards { get; protected set; } = [];
 
-        public List<Card> HandCards { get; protected set; } = [];
-
         [JsonIgnore]
         public List<Card> CardDecks { get; protected set; } = [];
 
@@ -40,9 +38,9 @@ namespace BHG.WebService
         [JsonIgnore]
         public bool HasDogJarvisRole => ExtraRoles.Any(x => x == PlayerRole.DogJarvis);
 
-        public Dictionary<string, int> VoteStat = new Dictionary<string, int>();
+        public List<string> PlayerVoteLogs { get; set; } = [];
 
-        public List<string> VoteLog = new List<string>();
+        public List<string> VoteHangingLogs { get; set; } = [];
 
         public int DiscussTimeRemain { get; set; }
 
@@ -56,9 +54,19 @@ namespace BHG.WebService
             return Players.Find(x => x.UserName == userName);
         }
 
-        public Player GetPlayer(PlayerRole role)
+        public Player GetPlayer(PlayerRole roleId)
         {
-            return Players.Find(x => x.RoleId == role);
+            return Players.Find(x => x.RoleId == roleId);
+        }
+
+        public Player GetPlayer(PlayerStatus statusId)
+        {
+            return Players.Find(x => x.StatusId == statusId);
+        }
+
+        public IEnumerable<Player> GetAlivePlayers()
+        {
+            return Players.Where(x => x.StatusId == PlayerStatus.Alive);
         }
 
         public bool IsHostPlayer(string userName)
@@ -83,6 +91,17 @@ namespace BHG.WebService
 
             var player = GetPlayer(userName);
             return player != null && player.StatusId == statusId;
+        }
+
+        public void ClearRoomLog()
+        {
+            DiscussTimeRemain = 0;
+            PlayerVoteLogs.Clear();
+        }
+
+        public GameState GetStartRoundGameState()
+        {
+            return HasDogJarvisRole? GameState.ProtectorTurn: GameState.KillerTurn;
         }
     }
 }

@@ -9,8 +9,8 @@
         LeaveDyingMessageTime = 5,
         LeaveFakeEvidenceTime = 6,
         DiscussTime = 7,
-        VoteOutTime = 8,
-        VoteKillTime = 9,
-        GameOver = 10,
+        VoteHanging = 8,
+        GameOverCivilianWin = 9,
+        GameOverKillerWin = 10
     }
 }

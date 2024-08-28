@@ -28,13 +28,10 @@
         KillerChooseEvidences = 5,
 
         /// <summary>
-        /// All players vote out for suspects.
+        /// All players vote out for hanging.
         /// </summary>
-        VoteKillerOut = 6,
+        VoteHanging = 6,
 
-        /// <summary>
-        /// All players vote to confirm kill suspect.
-        /// </summary>
-        VoteConfirmKill = 7
+        BackToLobby = 7
     }
 }

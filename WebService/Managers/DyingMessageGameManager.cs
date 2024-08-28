@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using System.Drawing;
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -9,7 +10,7 @@ namespace BHG.WebService
     {
         private static DyingMessageGameManager _instance = null;
 
-        public const int DefaultDiscussTime = 30;
+        public const int DefaultDiscussTime = 300;
 
         protected static readonly Dictionary<string, Room> _roomSession = [];
 
@@ -85,6 +86,27 @@ namespace BHG.WebService
             return value;
         }
 
+        public Room LeaveRoomSession(string roomCode, string userName)
+        {
+            if (!_roomSession.TryGetValue(roomCode, out Room value)) return null;
+
+            lock (value)
+            {
+                lock (value.Players)
+                {
+                    int index = value.Players.FindIndex(x => x.UserName == userName);
+                    if (index != -1)
+                    {
+                        value.Players.RemoveAt(index);
+                    }
+
+                    value.ModifyDate = DateTime.Now;
+                }
+            }
+
+            return value;
+        }
+
         public void ConfigGame(string roomCode, List<PlayerRole> extraRoles)
         {
             if (extraRoles != null && extraRoles.Count > 0)
@@ -146,13 +168,43 @@ namespace BHG.WebService
                     await Task.Delay(TimeSpan.FromSeconds(3));
                     lock (room)
                     {
-                        room.GameStateId = room.HasDogJarvisRole ? GameState.ProtectorTurn : GameState.KillerTurn;
+                        room.GameStateId = room.GetStartRoundGameState();
                         room.ModifyDate = DateTime.Now;
                     }
                     await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Killer turn.");
                     await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
                 }).ConfigureAwait(false);
+            }
+            return room;
+        }
+
+        public async Task<Room> BackToLobby(string roomCode, IHubContext<GameHub> hubContext)
+        {
+            var room = GetRoomSession(roomCode);
+            if (room != null)
+            {
+                lock (room)
+                {
+                    room.CardDecks.Clear();
+                    room.Cards.Clear();
+
+                    room.ClearRoomLog();
+
+                    for (int i = 0; i < room.Players.Count; i++)
+                    {
+                        lock (room.Players[i])
+                        {
+                            room.Players[i].StatusId = PlayerStatus.Unknown;
+                            room.Players[i].RoleId = PlayerRole.Unknown;
+                            room.Players[i].IsProtected = false;
+                        }
+                    }
+                    room.GameStateId = GameState.Waiting;
+                    room.ModifyDate = DateTime.Now;
+                }
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Game has beed start.");
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
             }
             return room;
         }
@@ -212,7 +264,7 @@ namespace BHG.WebService
             {
                 lock (room)
                 {
-                    room.GameStateId = GameState.GameOver;
+                    room.GameStateId = killerTeamWin ? GameState.GameOverKillerWin : GameState.GameOverCivilianWin;
                     room.ModifyDate = DateTime.Now;
                 }
 
@@ -247,6 +299,7 @@ namespace BHG.WebService
         public async Task<Room> DyingChooseEvidence(string roomCode, int cardId, IHubContext<GameHub> hubContext)
         {
             var room = GetRoomSession(roomCode) ?? throw new ArgumentOutOfRangeException(roomCode);
+            var dyingPlayer = room.GetPlayer(PlayerStatus.Dying);
 
             lock (room)
             {
@@ -257,6 +310,11 @@ namespace BHG.WebService
                     card.StatusId = CardStatus.RealEvidence;
                 }
 
+                lock (dyingPlayer)
+                {
+                    dyingPlayer.StatusId = PlayerStatus.Dead;
+                }
+
                 room.GameStateId = GameState.LeaveFakeEvidenceTime;
                 room.ModifyDate = DateTime.Now;
             }
@@ -265,7 +323,7 @@ namespace BHG.WebService
             return room;
         }
 
-        public async Task<Room> KillerChooseEvidences(string roomCode, List<int> cardIds, IHubContext<GameHub> hubContext)
+        public async Task<Room> KillerChooseFakeEvidences(string roomCode, List<int> cardIds, IHubContext<GameHub> hubContext)
         {
             var room = GetRoomSession(roomCode) ?? throw new ArgumentOutOfRangeException(roomCode);
 
@@ -300,6 +358,8 @@ namespace BHG.WebService
                             }
                         }
                     }
+
+                    room.Cards[room.GameRound] = ShuffleCards(room.Cards[room.GameRound]);
                 }
 
                 room.GameStateId = GameState.DiscussTime;
@@ -308,39 +368,37 @@ namespace BHG.WebService
             }
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
-            
-                _ = Task.Run(async () =>
-                {
-                    for (int i = room.DiscussTimeRemain; i > 0; i--)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(1));
-                        lock (room)
-                        {
-                            room.DiscussTimeRemain = i;
-                            room.ModifyDate = DateTime.Now;
-                        }
-                        await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendDiscussTime, i);
-                    }
 
+            _ = Task.Run(async () =>
+            {
+                for (int i = room.DiscussTimeRemain; i > 0; i--)
+                {
                     await Task.Delay(TimeSpan.FromSeconds(1));
-
                     lock (room)
                     {
-                        room.GameStateId = GameState.VoteOutTime;
-                        room.DiscussTimeRemain = 0;
-                        room.VoteStat.Clear();
-                        room.VoteLog.Clear();
+                        room.DiscussTimeRemain = i;
                         room.ModifyDate = DateTime.Now;
                     }
-                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Time to vote killer.");
-                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
-                }).ConfigureAwait(false);
-            
+                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendDiscussTime, i);
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+
+                lock (room)
+                {
+                    room.GameStateId = GameState.VoteHanging;
+                    room.ClearRoomLog();
+                    room.ModifyDate = DateTime.Now;
+                }
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Time to vote killer.");
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
+            }).ConfigureAwait(false);
+
 
             return room;
         }
 
-        public async Task<Room> VotePlayer(string roomCode, string userName, string targetUserName, IHubContext<GameHub> hubContext)
+        public async Task<Room> VoteHanging(string roomCode, string userName, string targetUserName, IHubContext<GameHub> hubContext)
         {
             var room = GetRoomSession(roomCode) ?? throw new ArgumentOutOfRangeException(roomCode);
             var player = room.GetPlayer(userName) ?? throw new ArgumentOutOfRangeException(userName);
@@ -348,88 +406,46 @@ namespace BHG.WebService
 
             lock (room)
             {
-                if (!room.VoteLog.Contains(player.UserName))
+                if (!room.PlayerVoteLogs.Contains(player.UserName))
                 {
-                    if (room.VoteStat.ContainsKey(targetPlayer.UserName))
-                    {
-                        room.VoteStat[targetPlayer.UserName] += 1;
-                    }
-                    else
-                    {
-                        room.VoteStat.Add(targetPlayer.UserName, 1);
-                    }
-                    room.VoteLog.Add(player.UserName);
+                    room.VoteHangingLogs.Add(targetPlayer.UserName);
+                    room.PlayerVoteLogs.Add(player.UserName);
                 }
-
                 room.ModifyDate = DateTime.Now;
             }
 
             // Everyone is voted.
-            if (room.VoteLog.Count == room.Players.Count)
+            if (room.PlayerVoteLogs.Count == room.GetAlivePlayers().Count())
             {
-                int maxVoteQty = room.VoteStat.Max(x => x.Value);
-                var maxVotePlayers = room.VoteStat.Where(x => x.Value == maxVoteQty);
-                int highVoteQty = maxVotePlayers.Count();
-                if (highVoteQty > 0 && highVoteQty != room.Players.Count)
+                int voteSize = room.VoteHangingLogs.Count;
+                string candidate = FindCandidate(room.VoteHangingLogs, voteSize);
+                if (IsMajority(room.VoteHangingLogs, voteSize, candidate))
                 {
+                    var candidatePlayer = room.GetPlayer(candidate);
+
                     lock (room)
                     {
-                        foreach (var item in maxVotePlayers)
+                        room.GameRound++;
+                        room.GameStateId = room.GetStartRoundGameState();
+                        room.ClearRoomLog();
+
+                        lock (candidatePlayer)
                         {
-                            var votePlayer = room.Players.FirstOrDefault(x => x.UserName == item.Key);
-                            votePlayer.StatusId = PlayerStatus.Hanging;
+                            candidatePlayer.StatusId = PlayerStatus.Dead;
                         }
+
                         room.ModifyDate = DateTime.Now;
                     }
+
+                    await CheckGameOver(roomCode, hubContext);
                 }
-            }
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {userName} vote {targetUserName}.");
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
-
-            return room;
-        }
-
-        public async Task<Room> VoteForKillPlayer(string roomCode, string userName, string targetUserName, IHubContext<GameHub> hubContext)
-        {
-            var room = GetRoomSession(roomCode) ?? throw new ArgumentOutOfRangeException(roomCode);
-            var player = room.GetPlayer(userName) ?? throw new ArgumentOutOfRangeException(userName);
-            var targetPlayer = room.GetPlayer(targetUserName) ?? throw new ArgumentOutOfRangeException(targetUserName);
-
-            if (!targetPlayer.IsVoted) return null;
-
-            lock (room)
-            {
-                if (!room.VoteLog.Contains(player.UserName))
-                {
-                    if (room.VoteStat.ContainsKey(targetPlayer.UserName))
-                    {
-                        room.VoteStat[targetPlayer.UserName] += 1;
-                    }
-                    else
-                    {
-                        room.VoteStat.Add(targetPlayer.UserName, 1);
-                    }
-                    room.VoteLog.Add(player.UserName);
-                }
-
-                room.ModifyDate = DateTime.Now;
-            }
-
-            // Everyone is voted.
-            if (room.VoteLog.Count == room.Players.Count)
-            {
-                int maxVoteQty = room.VoteStat.Max(x => x.Value);
-                var maxVotePlayers = room.VoteStat.Where(x => x.Value == maxVoteQty);
-                int highVoteQty = maxVotePlayers.Count();
-                if (highVoteQty > 0 && highVoteQty != room.Players.Count)
+                else
                 {
                     lock (room)
                     {
-                        foreach (var item in maxVotePlayers)
-                        {
-                            var votePlayer = room.Players.FirstOrDefault(x => x.UserName == item.Key);
-                            votePlayer.IsVoted = true;
-                        }
+                        room.GameRound++;
+                        room.GameStateId = room.GetStartRoundGameState();
+                        room.ClearRoomLog();
                         room.ModifyDate = DateTime.Now;
                     }
                 }
@@ -481,6 +497,21 @@ namespace BHG.WebService
             return room;
         }
 
+        protected List<Card> ShuffleCards(List<Card> cards)
+        {
+            int cardDeckQty = cards.Count;
+            var cardIndexes = new HashSet<int>();
+            var list = new List<Card>();
+            for (int i = 0; i < cardDeckQty; i++)
+            {
+                int cardIndex = GetRandomIndex(cardDeckQty, cardIndexes);
+                cardIndexes.Add(cardIndex);
+                var card = cards[cardIndex];
+                list.Add(card);
+            }
+            return cards;
+        }
+
         protected List<Card> CreateCardDecks()
         {
             var list = new List<Card>();
@@ -509,5 +540,38 @@ namespace BHG.WebService
             return range.ElementAt(index);
         }
 
+        private static string FindCandidate(IEnumerable<string> list, int size)
+        {
+            int maj_index = 0, count = 1;
+            int i;
+            for (i = 1; i < list.Count(); i++)
+            {
+                if (list.ElementAt(maj_index) == list.ElementAt(i))
+                    count++;
+                else
+                    count--;
+
+                if (count == 0)
+                {
+                    maj_index = i;
+                    count = 1;
+                }
+            }
+            return list.ElementAt(maj_index);
+        }
+
+        private static bool IsMajority(IEnumerable<string> list, int size, string cand)
+        {
+            int i, count = 0;
+            for (i = 0; i < size; i++)
+            {
+                if (list.ElementAt(i) == cand)
+                    count++;
+            }
+            if (count > size / 2)
+                return true;
+            else
+                return false;
+        }
     }
 }

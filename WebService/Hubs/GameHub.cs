@@ -81,6 +81,13 @@ namespace BHG.WebService
             string userName = GetUserName();
             await Clients.Group(roomName).SendAsync(RoomSendMsg, $"System: {userName ?? Context.ConnectionId} has left the room '{roomName}'.");
 
+            if (!string.IsNullOrEmpty(userName))
+            {
+                var room = DyingMessageGameManager.GetInstance().LeaveRoomSession(roomName, userName);
+
+                await Clients.Group(roomName).SendAsync(RoomSendData, room);
+            }
+
             lock (UserSession)
             {
                 UserSession.Remove(Context.ConnectionId);

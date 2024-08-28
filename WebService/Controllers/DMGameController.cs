@@ -71,15 +71,23 @@ namespace BHG.WebService
                     {
                         if (room.IsPlayerInRole(model.UserName, PlayerRole.Killer) && model.TargetCardIds.Count == 2)
                         {
-                            room = await gameMan.KillerChooseEvidences(roomCode, model.TargetCardIds, _hubContext);
+                            room = await gameMan.KillerChooseFakeEvidences(roomCode, model.TargetCardIds, _hubContext);
                             return Ok(new RoomResponse(room));
                         }
                     }
-                    else if (model.AcionTypeId.Value == DMGameAction.VoteKillerOut)
+                    else if (model.AcionTypeId.Value == DMGameAction.VoteHanging)
                     {
                         if (room.IsPlayerStatus(model.UserName, PlayerStatus.Alive) && !string.IsNullOrWhiteSpace(model.TargetUserName))
                         {
-                            room = await gameMan.VotePlayer(roomCode, model.UserName, model.TargetUserName, _hubContext);
+                            room = await gameMan.VoteHanging(roomCode, model.UserName, model.TargetUserName, _hubContext);
+                            return Ok(new RoomResponse(room));
+                        }
+                    }
+                    else if (model.AcionTypeId.Value == DMGameAction.BackToLobby)
+                    {
+                        if (room.IsHostPlayer(model.UserName))
+                        {
+                            room = await gameMan.BackToLobby(roomCode, _hubContext);
                             return Ok(new RoomResponse(room));
                         }
                     }
