@@ -1,8 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using System.Drawing;
-using System.Numerics;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace BHG.WebService
 {
@@ -203,7 +199,7 @@ namespace BHG.WebService
                     room.GameStateId = GameState.Waiting;
                     room.ModifyDate = DateTime.Now;
                 }
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Game has beed start.");
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Back to lobby.");
                 await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
             }
             return room;
@@ -364,35 +360,36 @@ namespace BHG.WebService
 
                 room.GameStateId = GameState.DiscussTime;
                 room.DiscussTimeRemain = DefaultDiscussTime;
+                room.ClearRoomLog();
                 room.ModifyDate = DateTime.Now;
             }
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
 
 
-            _ = Task.Run(async () =>
-            {
-                for (int i = room.DiscussTimeRemain; i > 0; i--)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1));
-                    lock (room)
-                    {
-                        room.DiscussTimeRemain = i;
-                        room.ModifyDate = DateTime.Now;
-                    }
-                    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendDiscussTime, i);
-                }
+            //_ = Task.Run(async () =>
+            //{
+            //    for (int i = room.DiscussTimeRemain; i > 0; i--)
+            //    {
+            //        await Task.Delay(TimeSpan.FromSeconds(1));
+            //        lock (room)
+            //        {
+            //            room.DiscussTimeRemain = i;
+            //            room.ModifyDate = DateTime.Now;
+            //        }
+            //        await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendDiscussTime, i);
+            //    }
 
-                await Task.Delay(TimeSpan.FromSeconds(1));
+            //    await Task.Delay(TimeSpan.FromSeconds(1));
 
-                lock (room)
-                {
-                    room.GameStateId = GameState.VoteHanging;
-                    room.ClearRoomLog();
-                    room.ModifyDate = DateTime.Now;
-                }
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Time to vote killer.");
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
-            }).ConfigureAwait(false);
+            //    lock (room)
+            //    {
+            //        room.GameStateId = GameState.VoteHanging;
+            //        room.ClearRoomLog();
+            //        room.ModifyDate = DateTime.Now;
+            //    }
+            //    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: Time to vote killer.");
+            //    await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
+            //}).ConfigureAwait(false);
 
 
             return room;
