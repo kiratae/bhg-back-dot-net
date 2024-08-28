@@ -87,8 +87,10 @@ namespace BHG.WebService
             if (!string.IsNullOrEmpty(userName))
             {
                 var room = DyingMessageGameManager.GetInstance().LeaveRoomSession(roomName, userName);
-
-                await Clients.Group(roomName).SendAsync(RoomSendData, room);
+                if (room != null)
+                {
+                    await Clients.Group(roomName).SendAsync(RoomSendData, room);
+                }
             }
 
             lock (UserSession)
