@@ -97,6 +97,7 @@ namespace BHG.WebService
         {
             DiscussTimeRemain = 0;
             PlayerVoteLogs.Clear();
+            VoteHangingLogs.Clear();
         }
 
         public GameState GetStartRoundGameState()
