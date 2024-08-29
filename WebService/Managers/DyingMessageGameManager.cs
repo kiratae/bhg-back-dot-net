@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using System;
 
 namespace BHG.WebService
 {
@@ -10,9 +11,16 @@ namespace BHG.WebService
 
         protected static readonly Dictionary<string, Room> _roomSession = [];
 
+        protected int MaxCardQty { get; private set; }
+
         private DyingMessageGameManager()
         {
-
+            MaxCardQty = 0;
+            var val = Environment.GetEnvironmentVariable("MAX_CARD_QTY");
+            if (!string.IsNullOrEmpty(val) && int.TryParse(val, out int intVal))
+            {
+                MaxCardQty = intVal;
+            }
         }
 
         public static DyingMessageGameManager GetInstance()
@@ -402,7 +410,8 @@ namespace BHG.WebService
             var player = room.GetPlayer(userName) ?? throw new ArgumentOutOfRangeException(userName);
             var targetPlayer = room.GetPlayer(targetUserName) ?? throw new ArgumentOutOfRangeException(targetUserName);
 
-            string candidate = null;
+            string hangingPlayer = null;
+            int voted = 0, maxPlayer = 0;
 
             lock (room)
             {
@@ -413,13 +422,16 @@ namespace BHG.WebService
                 }
 
                 // Everyone is voted.
-                if (room.PlayerVoteLogs.Count == room.GetAlivePlayers().Count())
+                voted = room.PlayerVoteLogs.Count;
+                maxPlayer = room.GetAlivePlayers().Count();
+                if (voted == maxPlayer)
                 {
                     int voteSize = room.VoteHangingLogs.Count;
-                    candidate = FindCandidate(room.VoteHangingLogs, voteSize);
+                    string candidate = FindCandidate(room.VoteHangingLogs, voteSize);
                     if (IsMajority(room.VoteHangingLogs, voteSize, candidate))
                     {
                         var candidatePlayer = room.GetPlayer(candidate);
+                        hangingPlayer = candidate;
 
                         lock (room)
                         {
@@ -452,11 +464,11 @@ namespace BHG.WebService
             }
 
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendMsg, $"System: {userName} vote {targetUserName}.");
-            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendPlayerVote, targetUserName);
+            await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendPlayerVote, userName, voted, maxPlayer);
 
-            if (candidate != null)
+            if (hangingPlayer != null)
             {
-                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendPlayerDead, candidate);
+                await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendPlayerDead, hangingPlayer);
             }
 
             await hubContext.Clients.Group(room.RoomCode).SendAsync(GameHub.RoomSendData, room);
@@ -526,15 +538,19 @@ namespace BHG.WebService
         {
             var list = new List<Card>();
 
-            DirectoryInfo di = new("./wwwroot/cards");
-            if (di.Exists)
+            //DirectoryInfo di = new("./wwwroot/cards");
+            //if (di.Exists)
+            //{
+            //    var files = di.GetFiles();
+            //    int index = 0;
+            //    foreach (var file in files)
+            //    {
+            //        list.Add(new Card() { CardId = index++, FileName = string.Format("~/cards/{0}", file.Name), StatusId = CardStatus.Unknown });
+            //    }
+            //}
+            for (int i = 0; i < MaxCardQty; i++)
             {
-                var files = di.GetFiles();
-                int index = 0;
-                foreach (var file in files)
-                {
-                    list.Add(new Card() { CardId = index++, FileName = string.Format("~/cards/{0}", file.Name), StatusId = CardStatus.Unknown });
-                }
+                list.Add(new Card() { CardId = i, FileName = string.Format("https://emissioninventory.airbkk.com/Client/assets/media/img/{0}.jpg", i), StatusId = CardStatus.Unknown });
             }
 
             return list;

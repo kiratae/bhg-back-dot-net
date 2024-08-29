@@ -5,7 +5,8 @@
       "launchBrowser": true,
       "launchUrl": "healthz",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "MAX_CARD_QTY": "48"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5054"
@@ -15,7 +16,8 @@
       "launchBrowser": true,
       "launchUrl": "healthz",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "MAX_CARD_QTY": "48"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7068;http://localhost:5054"
